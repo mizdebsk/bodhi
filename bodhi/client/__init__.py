@@ -18,6 +18,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """The bodhi CLI client."""
 
+import logging
 import os
 import platform
 import subprocess
@@ -32,6 +33,9 @@ import munch
 
 from bodhi.client import bindings
 from fedora.client import AuthError
+
+
+log = logging.getLogger(__name__)
 
 
 def _warn_if_url_and_staging_set(ctx, param, value):
@@ -222,11 +226,17 @@ def _save_override(url, user, password, staging, edit=False, **kwargs):
 
 @click.group()
 @click.version_option(message='%(version)s')
-def cli():
+@click.option('--debug', is_flag=True, default=False, help='Display debugging information.')
+def cli(debug):
     # Docs that show in the --help
     """Command line tool for interacting with Bodhi."""
     # Developer Docs
     """Create the main CLI group."""
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+    log.addHandler(ch)
+    log.setLevel(logging.DEBUG)
     pass  # pragma: no cover
 
 
@@ -454,6 +464,7 @@ def query(url, mine=False, rows=None, **kwargs):
         kwargs (dict): Other keyword arguments passed to us by click.
     """
     client = bindings.BodhiClient(base_url=url, staging=kwargs['staging'])
+
     if mine:
         client.init_username()
         kwargs['user'] = client.username

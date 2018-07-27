@@ -57,13 +57,37 @@ def _warn_if_url_and_staging_set(ctx, param, value):
     return value
 
 
+def _set_logging_debug(ctx, param, value):
+    """
+    Set up the logging level to "debug".
+
+    This allows us to print more information on the user's screen and thus helps following what is
+    going on.
+
+    Args:
+        ctx (click.core.Context): The Click context. Unused.
+        param (click.core.Option): The option being handled. Unused.
+        value (unicode): The value of the --debug flag.
+    Returns:
+        unicode: The value of the --debug flag.
+    """
+    if value:
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        log.addHandler(ch)
+        log.setLevel(logging.DEBUG)
+    return value
+
+
 url_option = click.option('--url', envvar='BODHI_URL', default=bindings.BASE_URL,
                           help=('URL of a Bodhi server. Ignored if --staging is set. Can be set '
                                 'with BODHI_URL environment variable'),
                           callback=_warn_if_url_and_staging_set)
 staging_option = click.option('--staging', help='Use the staging bodhi instance',
                               is_flag=True, default=False)
-
+debug_option = click.option('--debug', help='Display debugging information.',
+                            is_flag=True, default=False,
+                            callback=_set_logging_debug)
 
 new_edit_options = [
     click.option('--user'),
@@ -98,7 +122,8 @@ save_edit_options = [
     click.option('--user'),
     click.option('--password', hide_input=True),
     staging_option,
-    url_option]
+    url_option,
+    debug_option]
 
 
 # Basic options for pagination of query result
@@ -137,7 +162,8 @@ release_options = [
                                                'archived']),
                  help='The state of the release'),
     staging_option,
-    url_option]
+    url_option,
+    debug_option]
 
 
 def add_options(options):
@@ -226,17 +252,11 @@ def _save_override(url, user, password, staging, edit=False, **kwargs):
 
 @click.group()
 @click.version_option(message='%(version)s')
-@click.option('--debug', is_flag=True, default=False, help='Display debugging information.')
-def cli(debug):
+def cli():
     # Docs that show in the --help
     """Command line tool for interacting with Bodhi."""
     # Developer Docs
     """Create the main CLI group."""
-
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
-    log.addHandler(ch)
-    log.setLevel(logging.DEBUG)
     pass  # pragma: no cover
 
 
@@ -254,7 +274,8 @@ def composes():
 @staging_option
 @click.option('-v', '--verbose', is_flag=True, default=False, help='Display more information.')
 @url_option
-def list_composes(url, staging, verbose):
+@debug_option
+def list_composes(url, staging, verbose, debug):
     # User docs for the CLI
     """
     List composes.
@@ -288,7 +309,8 @@ def updates():
 @click.option('--file', help='A text file containing all the update details')
 @handle_errors
 @url_option
-def new(user, password, url, **kwargs):
+@debug_option
+def new(user, password, url, debug, **kwargs):
     # User Docs that show in the --help
     """
     Create a new update.
@@ -305,7 +327,6 @@ def new(user, password, url, **kwargs):
                        True.
         kwargs (dict): Other keyword arguments passed to us by click.
     """
-
     client = bindings.BodhiClient(base_url=url, username=user, password=password,
                                   staging=kwargs['staging'])
 
@@ -356,8 +377,9 @@ def _validate_edit_update(ctx, param, value):
 @add_options(new_edit_options)
 @click.argument('update', callback=_validate_edit_update)
 @url_option
+@debug_option
 @handle_errors
-def edit(user, password, url, **kwargs):
+def edit(user, password, url, debug, **kwargs):
     # User Docs that show in the --help
     """
     Edit an existing update.
@@ -442,9 +464,10 @@ def edit(user, password, url, **kwargs):
 @click.option('--mine', is_flag=True, help='Show only your updates')
 @staging_option
 @url_option
+@debug_option
 @add_options(pagination_options)
 @handle_errors
-def query(url, mine=False, rows=None, **kwargs):
+def query(url, mine=False, rows=None, debug=False, **kwargs):
     # User Docs that show in the --help
     """Query updates on Bodhi.
 
@@ -461,10 +484,10 @@ def query(url, mine=False, rows=None, **kwargs):
         url (unicode): The URL of a Bodhi server to create the update on. Ignored if staging is
                        True.
         mine (Boolean): If the --mine flag was set
+        debug (Boolean): If the --debug flag was set
         kwargs (dict): Other keyword arguments passed to us by click.
     """
     client = bindings.BodhiClient(base_url=url, staging=kwargs['staging'])
-
     if mine:
         client.init_username()
         kwargs['user'] = client.username
@@ -479,6 +502,7 @@ def query(url, mine=False, rows=None, **kwargs):
 @click.option('--password', hide_input=True)
 @staging_option
 @url_option
+@debug_option
 @handle_errors
 def request(update, state, user, password, url, **kwargs):
     # User Docs that show in the --help
@@ -524,6 +548,7 @@ def request(update, state, user, password, url, **kwargs):
 @click.option('--password', hide_input=True)
 @staging_option
 @url_option
+@debug_option
 @handle_errors
 def comment(update, text, karma, user, password, url, **kwargs):
     # User Docs that show in the --help
@@ -564,6 +589,7 @@ def comment(update, text, karma, user, password, url, **kwargs):
 @click.option('--updateid', help='Download update(s) by ID(s) (comma-separated list)')
 @click.option('--builds', help='Download update(s) by build NVR(s) (comma-separated list)')
 @url_option
+@debug_option
 @handle_errors
 def download(url, **kwargs):
     # User Docs that show in the --help
@@ -662,6 +688,7 @@ def _get_notes(**kwargs):
     "requirements, specify --test=all")
 @staging_option
 @url_option
+@debug_option
 @handle_errors
 def waive(update, show, test, comment, url, **kwargs):
     # User Docs that show in the --help
@@ -747,6 +774,7 @@ def overrides():
 @click.option('--builds', default=None,
               help='Query by comma-separated build id(s)')
 @url_option
+@debug_option
 @add_options(pagination_options)
 @handle_errors
 def query_buildroot_overrides(url, user=None, mine=False, packages=None,
@@ -930,7 +958,7 @@ def releases():
 @releases.command(name='create')
 @handle_errors
 @add_options(release_options)
-def create_release(user, password, url, **kwargs):
+def create_release(user, password, url, debug, **kwargs):
     """Create a release."""
     client = bindings.BodhiClient(base_url=url, username=user, password=password,
                                   staging=kwargs['staging'])
@@ -943,7 +971,7 @@ def create_release(user, password, url, **kwargs):
 @handle_errors
 @add_options(release_options)
 @click.option('--new-name', help='New release name (eg: F20)')
-def edit_release(user, password, url, **kwargs):
+def edit_release(user, password, url, debug, **kwargs):
     """Edit an existing release."""
     client = bindings.BodhiClient(base_url=url, username=user, password=password,
                                   staging=kwargs['staging'])
@@ -981,6 +1009,7 @@ def edit_release(user, password, url, **kwargs):
 @handle_errors
 @click.argument('name')
 @url_option
+@debug_option
 @staging_option
 def info_release(name, url, **kwargs):
     """Retrieve and print info about a named release."""

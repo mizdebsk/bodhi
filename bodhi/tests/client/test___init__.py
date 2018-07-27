@@ -335,8 +335,8 @@ class TestNew(unittest.TestCase):
         runner = testing.CliRunner()
 
         result = runner.invoke(
-            client.cli,
-            ['--debug', 'updates', 'new', '--user', 'bowlofeggs', '--password', 's3kr3t',
+            client.new,
+            ['--debug', '--user', 'bowlofeggs', '--password', 's3kr3t',
              '--autokarma', 'bodhi-2.2.4-1.el7', '--severity', 'urgent', '--notes',
              'No description.'])
 
